@@ -1,0 +1,187 @@
+i
+
+Wolf Vollprecht @wolfv 04:19
+is binder down? https://mybinder.org/v2/gh/QuantStack/xtensor/0.14.1-binder?filepath=notebooks%2Fxtensor.ipynb
+it says: taking a long time to load on 3 seperate repos
+the logs only say:
+found built image ...
+launching
+
+Tim Head @betatim 04:22
+@minrk if you are in europe, i am taking a look at the mountain of binders being spawned
+from the name it seems someone is favouriting google music stuff?
+also @choldgraf and @yuvipanda and @willingc in case any of you are awake
+@wolfv it is probably the music fave binder that is eating up all the resources
+take a look at https://grafana.mybinder.org/dashboard/db/main-dashboard?refresh=1m&orgId=1 the cluster keeps scaling up but just when it does scale up i think it can take a loooong time for your binder to spawn
+
+Wolf Vollprecht @wolfv 04:24
+sure, no worries! was just wanting to let you know
+would have liked to show it in my talk though :wink:
+
+Tim Head @betatim 04:25
+looks like 13:17 or 12:18 is when the last new node was spawned
+
+Wolf Vollprecht @wolfv 04:25
+oh wow, that looks crazy
+
+Tim Head @betatim 04:25
+so if whe nyou reported it was when you got stuck that might be the reason
+
+Wolf Vollprecht @wolfv 04:25
+but failed and running # of pods is the same?
+
+Tim Head @betatim 04:26
+yeah, ever since @yuvipanda updated prometheus that chart has been a bit broken
+we can't tell the difference between failed and running anymore
+or need to update the chart to show it properly again
+
+Wolf Vollprecht @wolfv 04:26
+:)
+
+Tim Head @betatim 04:27
+there are a lot of pods running for https://github.com/N2ITN/GoogleMusicFavs/
+about 304 of them right now
+kubectl get pods --namespace=prod | grep googlemusic | wc -l
+having had a quick look at the contents of the repo it doesn't look like it is meant as a bot/spammer
+
+Wolf Vollprecht @wolfv 04:28
+i think it was high up on hackernews or something
+saw it before
+
+Tim Head @betatim 04:31
+posted an issue on the repo N2ITN/GoogleMusicFavs#1
+@wolfv could you post a link to the HN thread here?
+then we have all the information in oen place for a write up later
+
+Wolf Vollprecht @wolfv 04:33
+https://www.reddit.com/r/Python/comments/7r6e6w/visualize_your_mostplayed_artists_tracks_and/
+
+Tim Head @betatim 04:33
+merci
+
+Wolf Vollprecht @wolfv 04:33
+it might be this one ... sorry, wasn't HN
+doesn't even have that many comments ... can you see the referrer in google analytics / piwik?
+
+Tim Head @betatim 04:34
+Google analytics also lists this repo as having a lot of users, so who ever is visiting has JS on (points away from this being a bot/script left running spawning new binders for ever)
+referrer looks like reddit
+geo wise: USA and Germany, who knews germans liked getting stats about their music
+
+Wolf Vollprecht @wolfv 04:36
+i thought we'd be more privacy aware :D
+
+Tim Head @betatim 04:37
+there are a few comments on the reddit thread now for me
+
+Wolf Vollprecht @wolfv 04:37
+there are 4 comments for me .. but 101 upvotes
+
+Tim Head @betatim 04:37
+for the moment i think there isn't much we can do. Looks like legit traffic
+
+Wolf Vollprecht @wolfv 04:37
+no prob for me :)
+
+Tim Head @betatim 04:38
+and as far as i can tell in the notebook you need to enter google music credentials so i think this means that they can't abuse google music (too much)
+
+Wolf Vollprecht @wolfv 04:38
+let's hope it drops down as fast as the price of bitconnect
+
+Tim Head @betatim 04:38
+using this chat as a bit of a notebook for the moment :)
+loooolz
+one nice thing with maddest props to all the people who worked on binderhub: no one noticed this until several hours in and even now it seems there is nothing left to do
+
+Wolf Vollprecht @wolfv 04:40
+yep, binder is really awesome! thanks to y'all!
+
+Tim Head @betatim 04:45
+I will step away for a moment to try and sort out some food
+next thing to do is to check what the maximum number of nodes is that our autoscaler will go to and decide if we want to up that limit in case we get close to it
+we are at 12 nodes and the limit is 15
+
+Tim Head @betatim 05:01
+how does the autoscaler decide to scale up? @yuvipanda most of the reddit pods aren't doing anything so it seems a bit silly to scale up to more nodes because they are just sitting around
+is it the memory guarantee for each pod that drives the scaling?
+
+rprimet @rprimet 05:08
+Speaking of the google music notebook, are there any security implications to it ? Seeing that it requires credentials and the storing of secrets in binder is discouraged (why?) but the credentials are easily revokable and "low-stakes". Is it OK? So-so? Or should it be discouraged?
+
+Tim Head @betatim 05:09
+i am not sure i'd type any passwords into binder, or any random webpage that i don't know the operators personally
+so in that sense we don't really want to encourage people to do that. One day maybe someone will store a password/token in a github repo just so it works on mybinder and I think if we keep saying "don't store credentials or type passwords" that is more clear than "ah well it depends"
+
+rprimet @rprimet 05:14
+@betatim good points. Suppose you would like to access an authenticated API from binder, would there be a feasible approach? Something like OAuth since it seems made for delegation?
+I mean, the "google music listener stats" use case seems interesting
+
+rlafraie @rlafraie 05:44
+@choldgraf
+@rlafraie see jupyter/repo2docker#196 for something related to this, feel free to chime in with whether you'd find this useful :-)
+Thank you very much for your answer. Do I understood correctly that this functionality is not realized yet? Further, does that mean I have to copy the code all of my scripts into the notebook until you guys resolved issue #196 ?
+
+Tim Head @betatim 05:45
+@rlafraie jupp, there is no way to set ENV variables at the moment
+well, you can do it if you create your own Dockerfile but then the contents of the variable has to be known when the container is being built
+
+Tim Head @betatim 05:53
+trying to launch a new binder based on the reddit repo is hanging for a long time at "launching server" at the moment for me
+
+Tim Head @betatim 05:59
+at 14 nodes now, traffic still seems to be going up so I decided to increase the maximum of the auto scaler to 20 instances
+:point_up_2: @choldgraf @yuvipanda @willingc
+
+Tim Head @betatim 06:09
+looks like pods are spending a lot of time "pulling"
+
+Tim Head @betatim 06:15
+and as if the reddit hive mind could hear me it looks like the number of running pods is staying constant
+
+Tim Head @betatim 06:25
+I reckon there is a problem :-/ the number of running pods keeps decreasing but I think that isn't because people have lost interest but because it takes too long to launch new binders
+
+epifanio @epifanio 06:39
+Hi, I was trying to set-up a repository with my binder. It was working fine last night. I made few changes to the repo (I added an image in the readme) so my-binder had to rebuild the image. Now the log says:
+Found built image, launching...
+Launching server...
+But the page doesn't load anymore and on top of the page it says:
+Repository epifanio/geosciences-250279 is taking a long time to load!
+See the logs for details.
+My understanding is that the image was built succesfully, but has problems to load. I was wondering if this depends by the structure of my repo or something else. During the last build I notices that mybinder was unable to clone the repository, after several attempts it eventually made the clone and continued the build process. It is now stuck at "launching the server"
+This is the log when it tries to clone the repo:
+Waiting for build to start...
+Cloning into '/tmp/repo2dockerhe4cv560'...
+fatal: unable to access 'https://github.com/epifanio/geosciences-250279/': Could not resolve host: github.com
+Failed to clone repository!
+
+Tim Head @betatim 06:43
+thanks @epifanio. I get the same error/hanging behaviour when it finds a image that is already built
+trying to debug at the moment
+
+Tim Head @betatim 06:52
+@epifanio i have also seen the could not resolve github.com error
+Increased the number of ingress replicas to ten
+
+Tim Head @betatim 07:03
+two ingress pods are in crashloopbackoff
+
+Tim Head @betatim 07:27
+deploy to production failed at 16:05, restarted it at about 16:25
+travis appears to hang on "deleting charts"
+
+Tim Head @betatim 07:49
+last note from my side before i have to go
+successfully built a new repo, log on the webpage said "waiting for server", inspecting the pod for that repo the notebook server started, waited for someoen to connect and 40s later shutdown
+
+Carol Willing @willingc 07:56
+@betatim Just getting breakfast and once I am at my computer will take a look
+
+Tim Head @betatim 08:04
+cool
+i am stumped as to what is broken
+something "networks" :grinning:
+_
+
+
